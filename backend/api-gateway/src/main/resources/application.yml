@@ -1,0 +1,97 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:5173"
+              - "http://127.0.0.1:3000"
+              - "http://127.0.0.1:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        # Auth Service Route
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**, /api/v1/users/**
+
+        # Medicine Service Route
+        - id: medicine-service
+          uri: lb://medicine-service
+          predicates:
+            - Path=/api/v1/medicines/**, /api/v1/categories/**, /api/v1/inventory/**, /api/v1/prescriptions/**
+
+        # Reminder Service Route
+        - id: reminder-service
+          uri: lb://reminder-service
+          predicates:
+            - Path=/api/v1/schedules/**, /api/v1/reminders/**, /api/v1/doses/**
+
+        # Health Tracking Service Route
+        - id: health-service
+          uri: lb://health-service
+          predicates:
+            - Path=/api/v1/health/**, /api/v1/goals/**
+
+        # Notification Service Route
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**, /api/v1/notification-preferences/**
+
+        # Appointment Service Route
+        - id: appointment-service
+          uri: lb://appointment-service
+          predicates:
+            - Path=/api/v1/appointments/**, /api/v1/doctors/**, /api/v1/specializations/**
+
+        # Analytics Service Route
+        - id: analytics-service
+          uri: lb://analytics-service
+          predicates:
+            - Path=/api/v1/analytics/**, /api/v1/reports/**
+
+        # Admin Service Route
+        - id: admin-service
+          uri: lb://admin-service
+          predicates:
+            - Path=/api/v1/admin/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:localhost}:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+jwt:
+  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

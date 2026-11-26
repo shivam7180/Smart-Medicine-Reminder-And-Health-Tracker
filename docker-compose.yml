@@ -1,0 +1,285 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Primary MySQL 8 Database (Isolated Schemas per Microservice)
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: medicare-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init-schemas.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./database/seed-data.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 2. Eureka Service Discovery Registry
+  # ---------------------------------------------------------------------------
+  eureka-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.eureka
+    container_name: medicare-eureka
+    restart: always
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 3. Spring Cloud API Gateway (Single Entry Point)
+  # ---------------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    container_name: medicare-api-gateway
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - EUREKA_HOST=eureka-server
+      - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      - eureka-server
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 4. Authentication & User Service
+  # ---------------------------------------------------------------------------
+  auth-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: auth-service
+    container_name: medicare-auth-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+      - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 5. Medicine Management Service
+  # ---------------------------------------------------------------------------
+  medicine-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: medicine-service
+    container_name: medicare-medicine-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 6. Reminder and Scheduling Service
+  # ---------------------------------------------------------------------------
+  reminder-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: reminder-service
+    container_name: medicare-reminder-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 7. Health Tracking Service
+  # ---------------------------------------------------------------------------
+  health-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: health-service
+    container_name: medicare-health-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 8. Notification Service
+  # ---------------------------------------------------------------------------
+  notification-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: notification-service
+    container_name: medicare-notification-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 9. Appointment & Doctor Service
+  # ---------------------------------------------------------------------------
+  appointment-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: appointment-service
+    container_name: medicare-appointment-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 10. Analytics & Reporting Service
+  # ---------------------------------------------------------------------------
+  analytics-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: analytics-service
+    container_name: medicare-analytics-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 11. Admin Governance Service
+  # ---------------------------------------------------------------------------
+  admin-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: admin-service
+    container_name: medicare-admin-service
+    restart: always
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - EUREKA_HOST=eureka-server
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - medicare-network
+
+  # ---------------------------------------------------------------------------
+  # 12. React Frontend Web Application
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: medicare-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - medicare-network
+
+networks:
+  medicare-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
